@@ -32,7 +32,7 @@ final class Payment extends DataObject{
 	private static $summary_fields = array(
 		'Money' => 'Money',
 		'GatewayTitle' => 'Gateway',
-		'Status' => 'Status',
+		'PaymentStatus' => 'Status',
 		'Created.Nice' => 'Created'
 	);
 
@@ -65,11 +65,22 @@ final class Payment extends DataObject{
 	public function getDefaultSearchContext() {
 		$context = parent::getDefaultSearchContext();
 		$fields = $context->getSearchFields();
+
 		$fields->removeByName('Gateway');
-		$fields->insertBefore(DropdownField::create('Gateway', 'Gateway',
+		$fields->removeByName('Created');
+		$fields->insertAfter(DropdownField::create('Gateway', _t('Payment.GATEWAY', 'Gateway'),
 			GatewayInfo::get_supported_gateways()
-		)->setHasEmptyDefault(true), 'Status');
-		$fields->fieldByName('Status')->setHasEmptyDefault(true);
+		)->setHasEmptyDefault(true), 'Money');
+
+		// create a localized status dropdown for the search-context
+		$fields->insertAfter(DropdownField::create('Status', _t('Payment.db_Status', 'Status'),
+			$this->getStatusValues()
+		)->setHasEmptyDefault(true), 'Gateway');
+
+		// update "money" to localized title
+		$fields->fieldByName('Money')->setTitle(_t('Payment.MONEY', 'Money'));
+
+		$context->addFilter(new PartialMatchFilter('Gateway'));
 
 		return $context;
 	}
@@ -110,6 +121,14 @@ final class Payment extends DataObject{
 
 	public function getGatewayTitle() {
 		return GatewayInfo::nice_title($this->Gateway);
+	}
+
+	/**
+	 * Get the payment status. This will return a localized value if available.
+	 * @return string the payment status
+	 */
+	public function getPaymentStatus() {
+		return _t('Payment.STATUS_' . strtoupper($this->Status), $this->Status);
 	}
 
 	/**
@@ -160,8 +179,8 @@ final class Payment extends DataObject{
 	 */
 	public function isComplete() {
 		return $this->Status == 'Captured' ||
-				$this->Status == 'Refunded' ||
-				$this->Status == 'Void';
+			$this->Status == 'Refunded' ||
+			$this->Status == 'Void';
 	}
 
 	/**
@@ -208,4 +227,33 @@ final class Payment extends DataObject{
 		return $id;
 	}
 
+	public function provideI18nEntities()
+	{
+		$entities = parent::provideI18nEntities();
+
+		// collect all the payment status values
+		foreach($this->dbObject('Status')->enumValues() as $value){
+			$key = strtoupper($value);
+			$entities["Payment.STATUS_$key"] = array(
+					$value,
+					"Translation of the payment status '$value'"
+			);
+		}
+
+		return $entities;
+	}
+
+	/**
+	 * Get an array of status enum value to translated string.
+	 * Can be used for dropdowns
+	 * @return array
+	 */
+	protected function getStatusValues()
+	{
+		$values = array();
+		foreach($this->dbObject('Status')->enumValues() as $value){
+			$values[$value] = _t('Payment.STATUS_' . strtoupper($value), $value);
+		}
+		return $values;
+	}
 }

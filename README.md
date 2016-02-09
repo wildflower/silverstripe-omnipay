@@ -8,22 +8,23 @@
 [![Total Downloads](https://poser.pugx.org/burnbright/silverstripe-omnipay/downloads.png)](https://packagist.org/packages/burnbright/silverstripe-omnipay)
 [![Latest Unstable Version](https://poser.pugx.org/burnbright/silverstripe-omnipay/v/unstable.png)](https://packagist.org/packages/burnbright/silverstripe-omnipay)
 
-The aim of this module is to make it easy for developers to eaisly integrate the ability to pay for things with their SilverStripe application.
+Live chat: [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/burnbright/silverstripe-omnipay?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+The aim of this module is to make it easy for developers to add online payments to their SilverStripe application. It makes heavy use of the [Omnipay Library](https://github.com/thephpleague/omnipay).
 There are many gateway options to choose from, and integrating with additional gateways has a structured approach that should be understandable.
+
 A high quality, simple to use payment module will help to boost the SilverStripe ecosystem, as it allows applications to be profitable.
 
-This module is a complete rewrite of the past Payment module. It is not backwards-compatible.
-In a nutshell, it provides a thin wrapping of the PHP Omnipay payments library.
-To understand more about omnipay, see: https://github.com/adrianmacneil/omnipay
+This module is a complete rewrite of the past Payment module. It is not backwards-compatible, but a migration task is available. In a nutshell, it wraps the PHP Omnipay payments library and provides some additional functionality. To understand more about omnipay, see: https://github.com/thephpleague/omnipay
 
 ## Version
 
-1.0
+1.1
 
 ## Requirements
 
  * [silverstripe framework](https://github.com/silverstripe/silverstripe-framework) 3.1+
- * [omnipay](https://github.com/omnipay/omnipay) + it's dependencies - which include guzzle and some symphony libraries.
+ * [omnipay](https://github.com/omnipay/omnipay) 1.1 + it's dependencies - which include guzzle and some symphony libraries.
 
 ## Features
 
@@ -33,8 +34,17 @@ To understand more about omnipay, see: https://github.com/adrianmacneil/omnipay
  * Provide visitors with one, or many gateways to choose from.
  * Provides form fields, which can change per-gateway.
  * Caters for different types of gateways: on-site capturing, off-site capturing, and manual payment.
- * Wraps the Omnipay php library.
+ * Wraps the [Omnipay](https://github.com/thephpleague/omnipay) php library.
  * Multiple currencies.
+
+## Compatible Payment Gateways
+
+There are many gateways the come [out of the box](https://github.com/thephpleague/omnipay/tree/1.1#payment-gateways).
+Note that currently this module uses version 1.1 of the ominpay library. Most gateways are packaged with the core library, some you can find seperate. Once we switch to version 2 of the omnipay library, all gateways will be seperate.
+
+Searching packagist is useful: https://packagist.org/search/?q=omnipay
+
+It is not too difficult to write your own gateway integration either, if needed.
 
 ## Installation
 
@@ -140,6 +150,26 @@ Payment:
                         - 'startYear'
 ```
 
+### Make your model Payable
+
+You can optionally add the `Payable` extension to your model (e.g. Order, Subscription, Donation, Registration).
+This will add a has_many `Payment` relationship to your model, and provide some additional functions
+**NOTE:** You must create the associated has_one relationship on `Payment` yourself. This can be done with an extension or via the yaml config system.
+For example, the following extension will be applied to `Payment`:
+```php
+class ShopPayment extends DataExtension {
+    private static $has_one = array(
+        'Order' => 'Order'
+    );
+}
+```
+With yaml:
+```yaml
+Payment:
+    has_one:
+        Order: Order
+```
+
 ### Make a purchase
 
 Using function chaining, we can create and configure a new payment object, and submit a request to the chosen gateway. The response object has a `redirect` function built in that will either redirect the user to the external gateway site, or to the given return url.
@@ -156,6 +186,33 @@ Using function chaining, we can create and configure a new payment object, and s
 Of course you don't need to chain all of these functions, as you may want to redirect somewhere else, or do some further setup.
 
 After payment has been made, the user will be redirected to the given return url (or cancel url, if they cancelled).
+
+### Passing correct data to the purchase function
+
+The omnipay library has a defined set of parameters that need to be passed in. Here is a list of parameters that you should map your data to:
+```
+transactionId
+firstName
+lastName
+email
+company
+billingAddress1
+billingAddress2
+billingCity
+billingPostcode
+billingState
+billingCountry
+billingPhone
+shippingAddress1
+shippingAddress2
+shippingCity
+shippingPostcode
+shippingState
+shippingCountry
+shippingPhone
+```
+
+**Note:** `transactionId` can be a reference that identifies the thing you are paying for, such as an order reference id. It usually shows up on bank statements for reconciliation purposes, but ultimately depends how the gateway uses it.
 
 ### onCaptured hook
 
